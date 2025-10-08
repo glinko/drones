@@ -53,7 +53,8 @@ model User {
   // Relations
   ownedProjects     Project[] @relation("ProjectOwner")
   createdProjects   Project[] @relation("ProjectCreator")
-  projectMembers    ProjectMember[]
+  projectMembers    ProjectMember[] @relation("ProjectMemberUser")
+  addedProjectMembers ProjectMember[] @relation("ProjectMemberAddedBy")
   uploadedMedia     Media[]
   sentInvitations   Invitation[] @relation("InvitationSender")
   receivedInvitations Invitation[] @relation("InvitationReceiver")
@@ -90,8 +91,8 @@ model ProjectMember {
 
   // Relations
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  addedBy User    @relation(fields: [addedById], references: [id])
+  user    User    @relation("ProjectMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  addedBy User    @relation("ProjectMemberAddedBy", fields: [addedById], references: [id])
 
   @@unique([projectId, userId])
   @@map("project_members")
