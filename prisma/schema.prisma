@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum ProjectMemberRole {
+  OWNER
+  VIEWER
+  EDITOR
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  firstName     String?
+  lastName      String?
+  phone         String?
+  role          UserRole  @default(USER)
+  emailVerified Boolean   @default(false)
+  emailVerifyToken String?
+  emailVerifyExpires DateTime?
+  resetToken    String?
+  resetExpires  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  ownedProjects     Project[] @relation("ProjectOwner")
+  createdProjects   Project[] @relation("ProjectCreator")
+  projectMembers    ProjectMember[]
+  uploadedMedia     Media[]
+  sentInvitations   Invitation[] @relation("InvitationSender")
+  receivedInvitations Invitation[] @relation("InvitationReceiver")
+  auditLogs         AuditLog[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  ownerId     String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  owner     User            @relation("ProjectOwner", fields: [ownerId], references: [id])
+  creator   User            @relation("ProjectCreator", fields: [createdById], references: [id])
+  members   ProjectMember[]
+  media     Media[]
+  invitations Invitation[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String            @id @default(cuid())
+  projectId String
+  userId    String
+  role      ProjectMemberRole @default(VIEWER)
+  addedById String
+  createdAt DateTime          @default(now())
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addedBy User    @relation(fields: [addedById], references: [id])
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+model Media {
+  id                String    @id @default(cuid())
+  projectId         String
+  type              MediaType
+  originalKey       String    // S3 key for original file
+  transcodedKey     String?   // S3 key for transcoded file (videos)
+  thumbnailKey      String?   // S3 key for thumbnail
+  filename          String
+  mimeType          String
+  sizeBytes         Int
+  width             Int?
+  height            Int?
+  durationSeconds   Float?    // For videos
+  orderingIndex     Int       @default(0)
+  tags              String[]  @default([])
+  checksum          String
+  uploadedById      String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation(fields: [uploadedById], references: [id])
+
+  @@index([projectId, orderingIndex])
+  @@map("media")
+}
+
+model Invitation {
+  id            String           @id @default(cuid())
+  projectId     String
+  email         String
+  token         String           @unique
+  status        InvitationStatus @default(PENDING)
+  invitedById   String
+  acceptedById  String?
+  expiresAt     DateTime
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  // Relations
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invitedBy User    @relation("InvitationSender", fields: [invitedById], references: [id])
+  acceptedBy User?  @relation("InvitationReceiver", fields: [acceptedById], references: [id])
+
+  @@index([email, projectId])
+  @@map("invitations")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String
+  action      String
+  entityType  String
+  entityId    String
+  payload     Json?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
