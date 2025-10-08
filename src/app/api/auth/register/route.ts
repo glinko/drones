@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
       phone,
     })
 
-    // Send verification email
-    await sendEmailVerification(email, user.emailVerifyToken!)
+    // Send verification email (temporarily disabled for testing)
+    // await sendEmailVerification(email, user.emailVerifyToken!)
 
     return NextResponse.json(
       { 

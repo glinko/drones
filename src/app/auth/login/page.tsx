@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -17,6 +18,7 @@ type LoginFormData = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const {
     register,
@@ -30,18 +32,28 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
     try {
-      // TODO: Implement API call to login
-      console.log('Login attempt:', data)
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // For now, redirect to dashboard (will be implemented later)
-      // router.push('/dashboard')
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (response.ok) {
+        // Login successful, redirect to dashboard
+        router.push('/dashboard')
+      } else {
+        const errorData = await response.json()
+        setError('root', {
+          type: 'manual',
+          message: errorData.error || 'Login failed'
+        })
+      }
     } catch (error) {
       setError('root', {
         type: 'manual',
-        message: 'Invalid email or password'
+        message: 'Network error. Please try again.'
       })
     } finally {
       setIsLoading(false)
