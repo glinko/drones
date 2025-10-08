@@ -9,6 +9,9 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get('auth-token')?.value
 
+  // Debug logging
+  console.log('Middleware - Path:', pathname, 'Token:', token ? 'exists' : 'missing')
+
   // Check if the route is protected
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route))

@@ -32,6 +32,8 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
     try {
+      console.log('Attempting login with:', data.email)
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -40,17 +42,33 @@ export default function LoginPage() {
         body: JSON.stringify(data),
       })
 
+      console.log('Response status:', response.status)
+      console.log('Response headers:', response.headers)
+
       if (response.ok) {
+        const responseData = await response.json()
+        console.log('Login successful:', responseData)
         // Login successful, redirect to dashboard
         router.push('/dashboard')
       } else {
-        const errorData = await response.json()
-        setError('root', {
-          type: 'manual',
-          message: errorData.error || 'Login failed'
-        })
+        const errorText = await response.text()
+        console.log('Error response:', errorText)
+        
+        try {
+          const errorData = JSON.parse(errorText)
+          setError('root', {
+            type: 'manual',
+            message: errorData.error || 'Login failed'
+          })
+        } catch {
+          setError('root', {
+            type: 'manual',
+            message: `Login failed: ${response.status} ${response.statusText}`
+          })
+        }
       }
     } catch (error) {
+      console.error('Login error:', error)
       setError('root', {
         type: 'manual',
         message: 'Network error. Please try again.'
