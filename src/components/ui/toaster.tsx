@@ -56,6 +56,8 @@ export function useToast() {
     throw new Error('useToast must be used within a ToastProvider')
   }
 
+  const { dispatch } = context
+
   const addToast = (toast: Omit<Toast, 'id'>) => {
     const id = Math.random().toString(36).substr(2, 9)
     dispatch({ type: 'ADD_TOAST', toast: { ...toast, id } })
