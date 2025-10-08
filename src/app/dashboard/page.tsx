@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   ShareIcon, 
   PencilIcon, 
@@ -10,6 +11,7 @@ import {
   VideoCameraIcon,
   PlusIcon
 } from '@heroicons/react/24/outline'
+import { useAuth } from '@/lib/auth-context'
 
 interface Project {
   id: string
@@ -29,6 +31,8 @@ interface Media {
 }
 
 export default function DashboardPage() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [media, setMedia] = useState<Media[]>([])
@@ -36,6 +40,13 @@ export default function DashboardPage() {
   const [projectName, setProjectName] = useState('')
   const [showShareModal, setShowShareModal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
+  }, [user, loading, router])
 
   // Mock data for development
   useEffect(() => {
@@ -128,12 +139,16 @@ export default function DashboardPage() {
     }
   }
 
-  if (isLoading) {
+  if (loading || isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     )
+  }
+
+  if (!user) {
+    return null // Will redirect via useEffect
   }
 
   return (

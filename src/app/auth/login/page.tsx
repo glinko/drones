@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import { useAuth } from '@/lib/auth-context'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -19,6 +20,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const { login } = useAuth()
 
   const {
     register,
@@ -32,40 +34,15 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
     try {
-      console.log('Attempting login with:', data.email)
+      const success = await login(data.email, data.password)
       
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
-
-      console.log('Response status:', response.status)
-      console.log('Response headers:', response.headers)
-
-      if (response.ok) {
-        const responseData = await response.json()
-        console.log('Login successful:', responseData)
-        // Login successful, redirect to dashboard
+      if (success) {
         router.push('/dashboard')
       } else {
-        const errorText = await response.text()
-        console.log('Error response:', errorText)
-        
-        try {
-          const errorData = JSON.parse(errorText)
-          setError('root', {
-            type: 'manual',
-            message: errorData.error || 'Login failed'
-          })
-        } catch {
-          setError('root', {
-            type: 'manual',
-            message: `Login failed: ${response.status} ${response.statusText}`
-          })
-        }
+        setError('root', {
+          type: 'manual',
+          message: 'Invalid email or password'
+        })
       }
     } catch (error) {
       console.error('Login error:', error)
