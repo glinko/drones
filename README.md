@@ -40,7 +40,7 @@ A comprehensive web application for drone photography and videography services w
 - **Backend**: Next.js API Routes, Prisma ORM
 - **Database**: PostgreSQL
 - **Authentication**: JWT with httpOnly cookies
-- **File Storage**: AWS S3 (configurable)
+- **File Storage**: AWS S3 or MinIO (local S3-compatible)
 - **Email**: Nodemailer with SMTP
 - **Video Streaming**: HLS.js for adaptive streaming
 - **Image Processing**: Sharp for thumbnails and optimization
@@ -51,7 +51,7 @@ Before running this application, make sure you have:
 
 1. **Node.js** (v18 or higher)
 2. **PostgreSQL** database
-3. **AWS S3** bucket (for file storage)
+3. **AWS S3** bucket or **MinIO** (for local S3-compatible storage)
 4. **SMTP** email service (Gmail, SendGrid, etc.)
 
 ## Installation
@@ -81,11 +81,15 @@ Before running this application, make sure you have:
    NEXTAUTH_SECRET="your-secret-key-here"
    NEXTAUTH_URL="http://localhost:3000"
    
-   # AWS S3 Configuration
-   AWS_ACCESS_KEY_ID="your-aws-access-key"
-   AWS_SECRET_ACCESS_KEY="your-aws-secret-key"
+   # S3/MinIO Configuration
+   AWS_ACCESS_KEY_ID="your-aws-access-key-or-minioadmin"
+   AWS_SECRET_ACCESS_KEY="your-aws-secret-or-minio-password"
    AWS_REGION="us-east-1"
-   AWS_S3_BUCKET="your-s3-bucket-name"
+   AWS_S3_BUCKET="media"
+   # For MinIO/local only:
+   AWS_S3_ENDPOINT="http://127.0.0.1:9000"
+   S3_FORCE_PATH_STYLE="true"
+   S3_SIGNATURE_VERSION="v4"
    
    # Email Configuration (SMTP)
    SMTP_HOST="smtp.gmail.com"
@@ -188,10 +192,10 @@ The application uses the following main entities:
 
 ## File Storage
 
-The application supports multiple storage backends:
+The application supports S3-compatible storage backends:
 
-- **AWS S3** (recommended for production)
-- **Local storage** (for development)
+- **AWS S3** (production)
+- **MinIO** (local, S3-compatible)
 
 Media files are automatically processed:
 - **Images**: Thumbnail generation, multiple sizes
@@ -237,6 +241,53 @@ src/
 │   ├── db.ts              # Database connection
 │   └── email.ts           # Email service
 └── types/                 # TypeScript type definitions
+```
+
+## MinIO (Local Object Storage)
+
+Install MinIO on Ubuntu:
+```bash
+sudo -i
+apt update && apt -y install curl
+useradd --system --user-group --shell /sbin/nologin minio-user || true
+mkdir -p /srv/minio/data && chown -R minio-user:minio-user /srv/minio
+curl -fsSL https://dl.min.io/server/minio/release/linux-amd64/minio -o /usr/local/bin/minio
+chmod +x /usr/local/bin/minio
+cat > /etc/systemd/system/minio.service << 'EOF'
+[Unit]
+Description=MinIO Object Storage
+After=network.target
+
+[Service]
+User=minio-user
+Group=minio-user
+Environment="MINIO_ROOT_USER=minioadmin"
+Environment="MINIO_ROOT_PASSWORD=ChangeThisLongRandomPwd!"
+ExecStart=/usr/local/bin/minio server --console-address ":9001" /srv/minio/data
+Restart=always
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload && systemctl enable --now minio
+
+# MinIO client and bucket
+curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+chmod +x /usr/local/bin/mc
+mc alias set local http://127.0.0.1:9000 minioadmin ChangeThisLongRandomPwd!
+mc mb local/media
+```
+
+Configure app env (example):
+```env
+AWS_ACCESS_KEY_ID="minioadmin"
+AWS_SECRET_ACCESS_KEY="ChangeThisLongRandomPwd!"
+AWS_REGION="us-east-1"
+AWS_S3_BUCKET="media"
+AWS_S3_ENDPOINT="http://127.0.0.1:9000"
+S3_FORCE_PATH_STYLE="true"
+S3_SIGNATURE_VERSION="v4"
 ```
 
 ## Deployment
